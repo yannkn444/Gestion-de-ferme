@@ -1,0 +1,13 @@
+mysql-connector-python
+python-dotenv
+reportlab
+matplotlib
+pillow
+bcrypt
+pandas
+openpyxl
+ttkbootstrap
+pyinstaller
+
+admin@example.com
+ChangeMe123!

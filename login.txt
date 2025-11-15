@@ -1,0 +1,12 @@
+^ADMIN_NAME=.*','ADMIN_NAME=Admin' -replace '^ADMIN_EMAIL=.*','ADMIN_EMAIL=admin@example.com' -replace '^ADMIN_PASSWORD=.*','ADMIN_PASSWORD=ChangeMe123!'
+
+
+cd C:\Users\user\Desktop\ADS\FarmManager\FarmManager; if (Test-Path .env) { (Get-Content .env) -replace '^DB_HOST=.*','DB_HOST=localhost' -replace '^DB_PORT=.*','DB_PORT=3306' -replace '^DB_USER=.*','DB_USER=root' -replace '^DB_PASSWORD=.*','DB_PASSWORD=' | Set-Content .env } else { Copy-Item config.env.example .env; (Get-Content .env) -replace '^DB_HOST=.*','DB_HOST=localhost' -replace '^DB_PORT=.*','DB_PORT=3306' -replace '^DB_USER=.*','DB_USER=root' -replace '^DB_PASSWORD=.*','DB_PASSWORD=' | Set-Content .env }; .\.venv\Scripts\python.exe -m scripts.apply_migrations; .\.venv\Scripts\python.exe -m scripts.create_admin
+
+
+
+Démarrer l’app
+cd C:\Users\user\Desktop\ADS\FarmManager\FarmManager.\.venv\Scripts\python.exe main.py
+Identifiants admin (par défaut):
+Email: admin@example.com
+Mot de passe: ChangeMe123!

@@ -1,7 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from pathlib import Path
+from PIL import Image, ImageTk
 import bcrypt
+import os
 
 from app.db import get_connection, init_connection_pool
 from app.auth import ROLE_ADMIN
@@ -48,9 +50,11 @@ class LoginFrame(ttk.Frame):
         logo_path = Path(__file__).resolve().parents[2] / "assets" / "logo.png"
         if logo_path.exists():
             try:
-                logo_img = tk.PhotoImage(file=str(logo_path))
-                logo_lbl = ttk.Label(main_frame, image=logo_img, background="#FFFFFF")
-                logo_lbl.image = logo_img
+                pil_image = Image.open(logo_path)
+                pil_image = pil_image.resize((350, 350), Image.Resampling.LANCZOS)        
+                logo_img = ImageTk.PhotoImage(pil_image)
+                logo_lbl = ttk.Label(main_frame, image=logo_img, background="#FFFFFF")        
+                logo_lbl.image = logo_img  
                 logo_lbl.pack(pady=(0, 15))
             except Exception:
                 ttk.Label(main_frame, text="🚜", font=("Segoe UI Emoji", 40), background="#FFFFFF").pack(pady=(0, 15))

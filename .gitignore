@@ -3,4 +3,4 @@ venv/
 
 # Ignorer les fichiers temporaires et de cache
 __pycache__/
-*.pyc
+*.pyc 

@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Optional
-
+# Importations factices (DAO et Utilitaires non fournis, mais nécessaires à la logique)
 from app.dao.lots import list_lots, create_lot, update_lot, get_lot, close_lot
 from app.dao.lot_events import record_mortality, record_partial_sale, get_lot_counters
 from app.utils.validators import is_valid_date
@@ -12,18 +12,32 @@ from tkinter import filedialog
 
 class LotForm(tk.Toplevel):
     """
-    Formulaire pour créer ou modifier les informations d'un lot d'animaux.
+    Formulaire pour créer ou modifier les informations de base d'un lot d'animaux.
+    Il est rendu semi-responsive et certains champs sont bloqués en mode édition.
     """
     def __init__(self, master, lot_id: Optional[int], on_saved):
         super().__init__(master)
+        # Configuration de base de la fenêtre
         self.title("Lot - Édition" if lot_id else "Lot - Nouveau")
-        self.resizable(False, False)
-        self._lot_id = lot_id
-        self._on_saved = on_saved
+        self.resizable(True, False) # Autoriser le redimensionnement horizontal
 
+        self._lot_id = lot_id       # ID du lot à éditer (None pour la création)
+        self._on_saved = on_saved   # Callback à exécuter après l'enregistrement (ex: rafraîchir la liste)
+
+        # Conteneur principal et configuration pour la responsivité
         container = ttk.Frame(self, padding=12)
-        container.grid(row=0, column=0)
+        # Le conteneur occupe toute la place disponible dans la fenêtre
+        container.grid(row=0, column=0, sticky="nsew") 
 
+        # Configuration du Toplevel pour la responsivité
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        
+        # Configuration du conteneur : seule la colonne des entrées s'étire
+        container.columnconfigure(1, weight=1) 
+        container.columnconfigure(0, weight=0) # Les labels restent fixes
+
+        # Variables de contrôle Tkinter
         self.var_type = tk.StringVar()
         self.var_date = tk.StringVar()
         self.var_nombre = tk.IntVar()
@@ -32,55 +46,81 @@ class LotForm(tk.Toplevel):
         self.var_statut = tk.StringVar(value="Actif")
         self.var_remarque = tk.StringVar()
 
+        # Construction des champs de saisie (utilisant la grille)
         row = 0
+        
+        # Champ Espèce (Combobox)
         ttk.Label(container, text="Espèce").grid(row=row, column=0, sticky="w", padx=5, pady=4)
         cb = ttk.Combobox(container, textvariable=self.var_type, values=["Poulet", "Porc"], state="readonly")
-        cb.grid(row=row, column=1, pady=4, padx=5)
+        cb.grid(row=row, column=1, pady=4, padx=5, sticky="ew") # sticky="ew" permet au widget de s'étirer
         row += 1
+        
+        # Champ Date d'arrivée
         ttk.Label(container, text="Date d'arrivée (YYYY-MM-DD)").grid(row=row, column=0, sticky="w", padx=5, pady=4)
-        ttk.Entry(container, textvariable=self.var_date, width=18).grid(row=row, column=1, pady=4, padx=5)
+        date_entry = ttk.Entry(container, textvariable=self.var_date)
+        date_entry.grid(row=row, column=1, pady=4, padx=5, sticky="ew")
         row += 1
+        
+        # Champ Nombre initial
         ttk.Label(container, text="Nombre initial").grid(row=row, column=0, sticky="w", padx=5, pady=4)
-        ttk.Entry(container, textvariable=self.var_nombre, width=18).grid(row=row, column=1, pady=4, padx=5)
+        nombre_entry = ttk.Entry(container, textvariable=self.var_nombre)
+        nombre_entry.grid(row=row, column=1, pady=4, padx=5, sticky="ew")
         row += 1
+        
+        # Champ Poids moyen
         ttk.Label(container, text="Poids moyen (kg)").grid(row=row, column=0, sticky="w", padx=5, pady=4)
-        ttk.Entry(container, textvariable=self.var_poids, width=18).grid(row=row, column=1, pady=4, padx=5)
+        ttk.Entry(container, textvariable=self.var_poids).grid(row=row, column=1, pady=4, padx=5, sticky="ew")
         row += 1
+        
+        # Champ Source
         ttk.Label(container, text="Source").grid(row=row, column=0, sticky="w", padx=5, pady=4)
-        ttk.Entry(container, textvariable=self.var_source, width=22).grid(row=row, column=1, pady=4, padx=5)
+        ttk.Entry(container, textvariable=self.var_source).grid(row=row, column=1, pady=4, padx=5, sticky="ew")
         row += 1
+        
+        # Champ Statut
         ttk.Label(container, text="Statut").grid(row=row, column=0, sticky="w", padx=5, pady=4)
-        cb2 = ttk.Combobox(container, textvariable=self.var_statut, values=["Actif", "Vendu", "Mort", "Abattu"], state="readonly")
-        cb2.grid(row=row, column=1, pady=4, padx=5)
+        cb2 = ttk.Combobox(container, textvariable=self.var_statut)
+        cb2.grid(row=row, column=1, pady=4, padx=5, sticky="ew")
         row += 1
-        ttk.Label(container, text="Remarque").grid(row=row, column=0, sticky="w", padx=5, pady=4)
-        ttk.Entry(container, textvariable=self.var_remarque, width=22).grid(row=row, column=1, pady=4, padx=5)
+        
+        # Champ Remarque
+        ttk.Label(container, text="Remarque (optionnel)").grid(row=row, column=0, sticky="w", padx=5, pady=4)
+        ttk.Entry(container, textvariable=self.var_remarque).grid(row=row, column=1, pady=4, padx=5, sticky="ew")
         row += 1
+        
+        # Bouton Enregistrer
         btn = ttk.Button(container, text="Enregistrer", command=self._save)
         btn.grid(row=row, column=0, columnspan=2, pady=12, sticky="ew")
 
+        # Logique d'édition : charger les données et bloquer les champs sensibles
         if lot_id:
             self._load()
+            # BLOCAGE DES CHAMPS SENSIBLES EN MODE ÉDITION
+            # Empêcher la modification de la date et du nombre initial pour maintenir la cohérence de l'historique
+            date_entry.config(state="readonly")
+            nombre_entry.config(state="readonly")
 
     def _load(self):
-        """Charge les données du lot pour l'édition."""
+        """Charge les données du lot existant pour l'édition."""
         lot = get_lot(self._lot_id)
         if not lot:
             messagebox.showerror("Erreur", "Lot introuvable")
             self.destroy()
             return
+        # Remplissage des variables
         self.var_type.set(lot["type_animal"])
         self.var_date.set(str(lot["date_arrivee"]))
-        # Correction pour garantir que le nombre initial ne change pas lors de l'édition
         self.var_nombre.set(lot["nombre_initial"]) 
         self.var_poids.set("" if lot["poids_moyen"] is None else str(lot["poids_moyen"]))
         self.var_source.set(lot.get("source") or "")
         self.var_statut.set(lot["statut"]) 
-        self.var_remarque.set(lot.get("remarque") or "")
+        self.var_remarque.set(lot.get("remarque (optionnel)") or "")
 
     def _save(self):
         """Valide et enregistre (crée ou met à jour) le lot."""
+        # 1. Validation de base
         try:
+            # Conversion du poids en float, ou None si vide
             poids = float(self.var_poids.get()) if self.var_poids.get().strip() else None
         except ValueError:
             messagebox.showwarning("Validation", "Poids moyen invalide. Veuillez entrer un nombre.")
@@ -94,42 +134,33 @@ class LotForm(tk.Toplevel):
             messagebox.showwarning("Validation", "Format de date invalide (attendu : YYYY-MM-DD)")
             return
         
-        # Vérification si un changement de statut est effectué sur un lot existant
+        # 2. Logique d'enregistrement
         if self._lot_id:
+            # Mode Édition
             current_lot = get_lot(self._lot_id)
-            if current_lot and current_lot["statut"] != self.var_statut.get():
-                # On utilise la fonction de clôture pour s'assurer que toutes les règles sont respectées
-                if self.var_statut.get() in ["Vendu", "Mort", "Abattu"]:
-                    if not messagebox.askyesno("Attention", f"Changer le statut de Lot #{self._lot_id} à '{self.var_statut.get()}' ? Cela clôturera le lot."):
+            new_statut = self.var_statut.get()
+            
+            # Vérification du changement de statut (clôture)
+            if current_lot and current_lot["statut"] != new_statut:
+                if new_statut in ["Vendu", "Mort", "Abattu"]:
+                    if not messagebox.askyesno("Attention", f"Changer le statut de Lot #{self._lot_id} à '{new_statut}' ? Cela clôturera le lot."):
                         return
-                    close_lot(self._lot_id, self.var_statut.get())
+                    # Utilise la fonction de DAO pour effectuer la clôture complète
+                    close_lot(self._lot_id, new_statut)
                 
-                # Mise à jour des autres champs si le statut n'est pas changé ou s'il est changé vers "Actif"
-                update_lot(
-                    self._lot_id,
-                    self.var_type.get(),
-                    self.var_date.get(),
-                    int(self.var_nombre.get()), # Ne devrait pas changer l'initial après la création
-                    poids,
-                    self.var_source.get() or None,
-                    self.var_statut.get(),
-                    self.var_remarque.get() or None,
-                )
-            else:
-                 # Mise à jour simple sans changement de statut de clôture
-                update_lot(
-                    self._lot_id,
-                    self.var_type.get(),
-                    self.var_date.get(),
-                    int(self.var_nombre.get()),
-                    poids,
-                    self.var_source.get() or None,
-                    self.var_statut.get(),
-                    self.var_remarque.get() or None,
-                )
-
+            # Mise à jour des informations de base
+            update_lot(
+                self._lot_id,
+                self.var_type.get(),
+                self.var_date.get(),
+                int(self.var_nombre.get()), # Bien que bloqué, on re-transmet la valeur pour l'intégrité
+                poids,
+                self.var_source.get() or None,
+                new_statut, # Utilisation du nouveau statut
+                self.var_remarque.get() or None,
+            )
         else:
-            # Création d'un nouveau lot
+            # Mode Création
             create_lot(
                 self.var_type.get(),
                 self.var_date.get(),
@@ -138,36 +169,52 @@ class LotForm(tk.Toplevel):
                 self.var_source.get() or None,
                 self.var_remarque.get() or None,
             )
+            
+        # 3. Finalisation
         self._on_saved()
         self.destroy()
 
 
+# ----------------------------------------------------------------------
+## Classe LotsFrame (Vue Principale)
+# ----------------------------------------------------------------------
+
 class LotsFrame(ttk.Frame):
     """
-    Cadre principal pour la gestion des lots d'animaux, affichant la liste et les actions.
+    Cadre principal pour la gestion des lots d'animaux.
+    Contient la barre d'outils et le Treeview (liste), et gère les actions.
+    **Implémentation du responsive design.**
     """
     def __init__(self, master):
         super().__init__(master, padding=10)
+        
+        # Configuration des poids pour la responsivité :
+        # La colonne 0 (tout le contenu) s'étire horizontalement
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(1, weight=1)
+        # La ligne 2 (le Treeview) s'étire verticalement.
+        self.rowconfigure(2, weight=1) 
+        
         self._build()
         self._refresh()
 
     def _build(self):
         """Construit l'interface utilisateur du cadre des lots."""
         
-        # Titre
+        # Titre (Ligne 0)
         ttk.Label(self, text="Gestion des Lots d'Animaux", 
                   font=("Segoe UI", 16, "bold"), foreground="#1C7D7D").grid(row=0, column=0, sticky="w", pady=(0, 10))
 
-        # Barre d'outils
+        # Barre d'outils (Ligne 1)
         toolbar = ttk.Frame(self)
-        toolbar.grid(row=1, column=0, sticky="ew", pady=(0, 5))
+        # sticky="ew" permet à la barre d'outils de s'étirer horizontalement
+        toolbar.grid(row=1, column=0, sticky="ew", pady=(0, 5)) 
         
+        # Boutons de la barre d'outils
         self.btn_new = ttk.Button(toolbar, text="Nouveau lot (Fermier)", command=self._new)
         self.btn_new.pack(side=tk.LEFT)
         self.btn_edit = ttk.Button(toolbar, text="Modifier", command=self._edit)
         self.btn_edit.pack(side=tk.LEFT, padx=6)
+        
         
         ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, padx=10, fill='y')
 
@@ -181,11 +228,11 @@ class LotsFrame(ttk.Frame):
         self.btn_close = ttk.Button(toolbar, text="✅ Clôturer (Vendu)", command=self._close)
         self.btn_close.pack(side=tk.LEFT)
 
-        # Treeview pour la liste des lots
-        cols = ("id", "type", "date", "nombre", "morts", "vendus", "restants", "poids", "source", "statut")
+        # Treeview pour la liste des lots (Ligne 2)
+        cols = ("id", "type", "date", "nombre", "morts", "vendus", "restants", "poids", "source", "statut", "remarque")
         self.tree = ttk.Treeview(self, columns=cols, show="headings", height=18)
         
-        # Configuration des colonnes
+        # Configuration des colonnes (pour la largeur)
         self.tree.column("id", width=40, anchor=tk.CENTER)
         self.tree.column("type", width=80, anchor=tk.CENTER)
         self.tree.column("date", width=100, anchor=tk.CENTER)
@@ -196,7 +243,9 @@ class LotsFrame(ttk.Frame):
         self.tree.column("poids", width=100, anchor=tk.CENTER)
         self.tree.column("source", width=120, anchor=tk.W)
         self.tree.column("statut", width=100, anchor=tk.CENTER)
-        
+        self.tree.column("remarque", width=150, anchor=tk.W)
+
+        # Configuration des en-têtes
         self.tree.heading("id", text="ID")
         self.tree.heading("type", text="Espèce")
         self.tree.heading("date", text="Arrivée")
@@ -207,22 +256,25 @@ class LotsFrame(ttk.Frame):
         self.tree.heading("poids", text="Poids moy. (kg)")
         self.tree.heading("source", text="Source")
         self.tree.heading("statut", text="Statut")
-        
-        self.tree.grid(row=2, column=0, sticky="nsew", pady=6)
+        self.tree.heading("remarque", text="Remarque")
+
+        # sticky="nsew" permet au Treeview de s'étirer dans toutes les directions.
+        self.tree.grid(row=2, column=0, sticky="nsew", pady=6) 
         
         # Ajout d'une barre de défilement verticale
         scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
-        scrollbar.grid(row=2, column=1, sticky='ns')
+        # sticky='ns' permet à la scrollbar de s'étirer verticalement.
+        scrollbar.grid(row=2, column=1, sticky='ns') 
 
     def _refresh(self):
         """Charge et affiche la liste des lots depuis la base de données."""
+        # Efface les lignes existantes
         for i in self.tree.get_children():
             self.tree.delete(i)
         
-        # On utilise list_lots pour récupérer les lots avec les compteurs calculés (morts, vendus, restants)
+        # Charge les lots (avec les compteurs calculés dans la DAO)
         for row in list_lots():
-            # Conversion en chaînes pour un affichage propre dans le Treeview
             poids_moyen = f"{row['poids_moyen']:.2f} kg" if row.get("poids_moyen") else "-"
             
             self.tree.insert("", tk.END, values=(
@@ -235,7 +287,8 @@ class LotsFrame(ttk.Frame):
                 row.get("restants", 0), 
                 poids_moyen, 
                 row.get("source") or "-", 
-                row["statut"]
+                row["statut"],
+                row.get("remarque (optionnel)") or "-"
             ))
 
     def _selected_id(self) -> Optional[int]:
@@ -246,6 +299,8 @@ class LotsFrame(ttk.Frame):
         values = self.tree.item(item[0], "values")
         return int(values[0])
 
+    # --- Gestion des actions (Nouveau, Modifier, Clôturer) ---
+    
     def _new(self):
         """Ouvre le formulaire pour créer un nouveau lot."""
         LotForm(self.master, None, self._refresh)
@@ -271,10 +326,11 @@ class LotsFrame(ttk.Frame):
             
         counters = get_lot_counters(id_)
         
+        # Demande de confirmation si des animaux sont restants
         if counters["restants"] > 0:
             if not messagebox.askyesno("Confirmation de Clôture", 
-                                      f"Lot #{id_}: Il reste {counters['restants']} animaux. "
-                                      "Voulez-vous vraiment clôturer ce lot en 'Vendu' ? (Les animaux restants seront comptabilisés comme vendus)."):
+                                        f"Lot #{id_}: Il reste {counters['restants']} animaux. "
+                                        "Voulez-vous vraiment clôturer ce lot en 'Vendu' ? (Les animaux restants seront comptabilisés comme vendus)."):
                 return
         else:
             if not messagebox.askyesno("Confirmation", f"Clôturer Lot #{id_} en 'Vendu' ?"):
@@ -283,8 +339,10 @@ class LotsFrame(ttk.Frame):
         close_lot(id_, "Vendu")
         self._refresh()
 
+    # --- Gestion des événements spécifiques (Mortalité et Vente) ---
+
     def _mortality(self):
-        """Ouvre la boîte de dialogue pour enregistrer un événement de mortalité."""
+        """Prépare l'ouverture du dialogue de mortalité pour le lot sélectionné."""
         id_ = self._selected_id()
         if not id_:
             messagebox.showinfo("Info", "Sélectionnez un lot.")
@@ -296,7 +354,7 @@ class LotsFrame(ttk.Frame):
         self._open_mortality_dialog(id_)
 
     def _sale(self):
-        """Ouvre la boîte de dialogue pour enregistrer une vente partielle."""
+        """Prépare l'ouverture du dialogue de vente partielle pour le lot sélectionné."""
         id_ = self._selected_id()
         if not id_:
             messagebox.showinfo("Info", "Sélectionnez un lot.")
@@ -308,7 +366,7 @@ class LotsFrame(ttk.Frame):
         self._open_sale_dialog(id_)
 
     def _open_mortality_dialog(self, lot_id: int):
-        """Dialogue pour enregistrer la mortalité."""
+        """Dialogue pour enregistrer la mortalité (avec validation de la date)."""
         dlg = tk.Toplevel(self.master)
         dlg.title(f"Mortalité - Lot #{lot_id}")
         dlg.transient(self.master)
@@ -317,10 +375,19 @@ class LotsFrame(ttk.Frame):
         frm = ttk.Frame(dlg, padding=12)
         frm.grid()
         
+        # Récupération de la date d'arrivée pour la validation temporelle
+        lot = get_lot(lot_id)
+        if not lot:
+            messagebox.showerror("Erreur", "Lot introuvable")
+            return
+        date_arrivee = lot["date_arrivee"]
+
+        # Variables du dialogue
         v_date = tk.StringVar()
         v_q = tk.IntVar(value=0)
         v_motif = tk.StringVar()
         
+        # Construction des champs
         row = 0
         ttk.Label(frm, text="Date (YYYY-MM-DD)").grid(row=row, column=0, sticky="w", padx=5, pady=4)
         ttk.Entry(frm, textvariable=v_date, width=18).grid(row=row, column=1, pady=4, padx=5)
@@ -333,12 +400,20 @@ class LotsFrame(ttk.Frame):
         row += 1
         
         def save():
+            """Logique d'enregistrement et de validation de la mortalité."""
             if v_q.get() <= 0 or not v_date.get():
                 messagebox.showwarning("Validation", "Date et quantité décédée requises et positives.")
                 return
             if not is_valid_date(v_date.get()):
                 messagebox.showwarning("Validation", "Format de date invalide (YYYY-MM-DD).")
                 return
+
+            # *** VÉRIFICATION DE LA COHÉRENCE TEMPORELLE ***
+            if v_date.get() < str(date_arrivee):
+                 messagebox.showwarning("Validation", 
+                                        f"La date de mortalité ({v_date.get()}) ne peut être antérieure à la date d'arrivée du lot ({date_arrivee}).")
+                 return
+            # **********************************************
 
             counters = get_lot_counters(lot_id)
             if v_q.get() > counters["restants"]:
@@ -352,7 +427,7 @@ class LotsFrame(ttk.Frame):
         ttk.Button(frm, text="Enregistrer la mortalité", command=save).grid(row=row, column=0, columnspan=2, pady=12, sticky="ew")
 
     def _open_sale_dialog(self, lot_id: int):
-        """Dialogue pour enregistrer une vente partielle."""
+        """Dialogue pour enregistrer une vente partielle (avec validation de la date et génération de reçu)."""
         dlg = tk.Toplevel(self.master)
         dlg.title(f"Vente Partielle - Lot #{lot_id}")
         dlg.transient(self.master)
@@ -361,11 +436,20 @@ class LotsFrame(ttk.Frame):
         frm = ttk.Frame(dlg, padding=12)
         frm.grid()
         
+        # Récupération de la date d'arrivée pour la validation temporelle
+        lot = get_lot(lot_id)
+        if not lot:
+            messagebox.showerror("Erreur", "Lot introuvable")
+            return
+        date_arrivee = lot["date_arrivee"]
+        
+        # Variables du dialogue
         v_date = tk.StringVar()
         v_q = tk.IntVar(value=0)
-        v_px = tk.StringVar()
+        v_px = tk.StringVar() # Prix
         v_client = tk.StringVar()
         
+        # Construction des champs
         row = 0
         ttk.Label(frm, text="Date (YYYY-MM-DD)").grid(row=row, column=0, sticky="w", padx=5, pady=4)
         ttk.Entry(frm, textvariable=v_date, width=18).grid(row=row, column=1, pady=4, padx=5)
@@ -381,6 +465,7 @@ class LotsFrame(ttk.Frame):
         row += 1
         
         def save():
+            """Logique d'enregistrement et de validation de la vente."""
             try:
                 prix = float(v_px.get())
             except ValueError:
@@ -395,6 +480,13 @@ class LotsFrame(ttk.Frame):
                 messagebox.showwarning("Validation", "Format de date invalide (YYYY-MM-DD).")
                 return
 
+            # *** VÉRIFICATION DE LA COHÉRENCE TEMPORELLE ***
+            if v_date.get() < str(date_arrivee):
+                 messagebox.showwarning("Validation", 
+                                        f"La date de vente ({v_date.get()}) ne peut être antérieure à la date d'arrivée du lot ({date_arrivee}).")
+                 return
+            # **********************************************
+
             counters = get_lot_counters(lot_id)
             if v_q.get() > counters["restants"]:
                 messagebox.showwarning("Validation", f"Quantité ({v_q.get()}) supérieure aux restants ({counters['restants']}).")
@@ -403,11 +495,11 @@ class LotsFrame(ttk.Frame):
             # Enregistrement de la vente
             record_partial_sale(lot_id, v_date.get(), int(v_q.get()), prix, v_client.get() or None)
             
-            # Demande d'exportation du reçu
+            # Demande d'exportation du reçu PDF
             if messagebox.askyesno("Reçu", "Voulez-vous générer un reçu PDF pour cette vente ?"):
                 path = filedialog.asksaveasfilename(defaultextension=".pdf", 
-                                                    filetypes=[("PDF files", "*.pdf")], 
-                                                    title="Enregistrer le reçu de vente")
+                                                     filetypes=[("PDF files", "*.pdf")], 
+                                                     title="Enregistrer le reçu de vente")
                 if path:
                     montant = int(v_q.get()) * prix
                     lot_info = get_lot(lot_id)

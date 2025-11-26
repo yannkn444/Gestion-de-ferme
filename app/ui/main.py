@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional, Dict
 
 # === Import des cadres de module (à adapter selon ton arborescence) ===
-from app.ui.login import LoginFrame
+from app.ui.login import LoginFrame # <-- Correction appliquée dans app/ui/login.py
 from app.ui.lots import LotsFrame
 from app.ui.soins import SoinsFrame
 from app.ui.stocks import StocksFrame
@@ -20,7 +20,7 @@ from app.theme import apply_theme
 
 # === Configuration des modules disponibles ===
 MODULE_CONFIG = [
-    ("Dashboard", "Tableau de bord", DashboardFrame, []), # <-- Liste de rôles vide ou la supprimer
+    ("Dashboard", "Tableau de bord", DashboardFrame, []),
     ("Lots", "Lots d'animaux", LotsFrame, []),
     ("Soins", "Soins / Santé", SoinsFrame, []),
     ("Stocks", "Gestion des stocks", StocksFrame, []),

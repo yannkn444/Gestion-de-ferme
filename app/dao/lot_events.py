@@ -1,6 +1,5 @@
 from typing import Dict, List, Optional
-
-from app.db import get_connection
+from ..db import get_connection
 
 
 def record_mortality(lot_id: int, date_event: str, quantite: int, motif: Optional[str]) -> None:
@@ -52,6 +51,36 @@ def get_lot_counters(lot_id: int) -> Dict[str, int]:
 			return {"initial": base["nombre_initial"], "mortalites": morts, "vendus": vendus, "restants": restants}
 	finally:
 		conn.close()
+
+def record_slaughter(
+    lot_id: int, 
+    date_abattage: str, 
+    quantite: int, 
+    poids_unitaire: Optional[float] = None
+) -> None:
+    """
+    Enregistre un événement d'abattage (slaughter) pour un lot.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Cette table (abattages) doit exister dans votre base de données.
+            cur.execute(
+                """
+                INSERT INTO abattages (lot_id, date_abattage, quantite, poids_unitaire)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (lot_id, date_abattage, quantite, poids_unitaire)
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"Erreur lors de l'enregistrement de l'abattage du lot {lot_id} : {e}")
+        if conn:
+            conn.rollback()
+        raise 
+    finally:
+        if conn:
+            conn.close()
 
 
 def list_mortalites(lot_id: int) -> List[Dict]:

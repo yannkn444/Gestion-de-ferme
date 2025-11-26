@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Optional
+from datetime import date
 # Importations factices (DAO et Utilitaires non fournis, mais nécessaires à la logique)
 from app.dao.lots import list_lots, create_lot, update_lot, get_lot, close_lot
 from app.dao.lot_events import record_mortality, record_partial_sale, get_lot_counters
@@ -8,6 +9,9 @@ from app.utils.validators import is_valid_date
 from app.utils.pdf import export_table_pdf, export_sale_receipt
 from pathlib import Path
 from tkinter import filedialog
+from app.dao.lots import list_lots, create_lot, update_lot, get_lot, close_lot, delete_lot 
+from app.dao.lot_events import record_mortality, record_partial_sale, get_lot_counters, record_slaughter 
+import time
 
 
 class LotForm(tk.Toplevel):
@@ -39,12 +43,13 @@ class LotForm(tk.Toplevel):
 
         # Variables de contrôle Tkinter
         self.var_type = tk.StringVar()
-        self.var_date = tk.StringVar()
+        self.var_date = tk.StringVar(value=date.today().strftime("%Y-%m-%d"))
         self.var_nombre = tk.IntVar()
         self.var_poids = tk.StringVar()
         self.var_source = tk.StringVar()
         self.var_statut = tk.StringVar(value="Actif")
         self.var_remarque = tk.StringVar()
+        self.var_cout_initial = tk.StringVar()
 
         # Construction des champs de saisie (utilisant la grille)
         row = 0
@@ -115,6 +120,7 @@ class LotForm(tk.Toplevel):
         self.var_source.set(lot.get("source") or "")
         self.var_statut.set(lot["statut"]) 
         self.var_remarque.set(lot.get("remarque (optionnel)") or "")
+        self.var_cout_initial.set(str(lot.get("cout_initial",0)))
 
     def _save(self):
         """Valide et enregistre (crée ou met à jour) le lot."""
@@ -138,26 +144,18 @@ class LotForm(tk.Toplevel):
         if self._lot_id:
             # Mode Édition
             current_lot = get_lot(self._lot_id)
-            new_statut = self.var_statut.get()
             
-            # Vérification du changement de statut (clôture)
-            if current_lot and current_lot["statut"] != new_statut:
-                if new_statut in ["Vendu", "Mort", "Abattu"]:
-                    if not messagebox.askyesno("Attention", f"Changer le statut de Lot #{self._lot_id} à '{new_statut}' ? Cela clôturera le lot."):
-                        return
-                    # Utilise la fonction de DAO pour effectuer la clôture complète
-                    close_lot(self._lot_id, new_statut)
-                
             # Mise à jour des informations de base
             update_lot(
                 self._lot_id,
                 self.var_type.get(),
                 self.var_date.get(),
-                int(self.var_nombre.get()), # Bien que bloqué, on re-transmet la valeur pour l'intégrité
+                int(self.var_nombre.get()),
                 poids,
                 self.var_source.get() or None,
-                new_statut, # Utilisation du nouveau statut
+                current_lot["statut"], # Garder le statut actuel
                 self.var_remarque.get() or None,
+                
             )
         else:
             # Mode Création
@@ -167,7 +165,9 @@ class LotForm(tk.Toplevel):
                 int(self.var_nombre.get()),
                 poids,
                 self.var_source.get() or None,
+                "Actif", # Statut par défaut à la création
                 self.var_remarque.get() or None,
+                
             )
             
         # 3. Finalisation
@@ -204,9 +204,16 @@ class LotsFrame(ttk.Frame):
         ttk.Label(self, text="Gestion des Lots d'Animaux", 
                   font=("Segoe UI", 16, "bold"), foreground="#1C7D7D").grid(row=0, column=0, sticky="w", pady=(0, 10))
 
+        # Variables pour le filtrage
+        self.var_search = tk.StringVar()
+        #Variable pour le filtre de statut (initialisée à 'Actif' par défaut)
+        self.var_statut_filter = tk.StringVar(value="Actif")
+
         # Barre d'outils (Ligne 1)
         toolbar = ttk.Frame(self)
-        # sticky="ew" permet à la barre d'outils de s'étirer horizontalement
+        toolbar.grid(row=1, column=0, sticky="ew", pady=(0, 5))
+        
+        toolbar = ttk.Frame(self)
         toolbar.grid(row=1, column=0, sticky="ew", pady=(0, 5)) 
         
         # Boutons de la barre d'outils
@@ -214,14 +221,48 @@ class LotsFrame(ttk.Frame):
         self.btn_new.pack(side=tk.LEFT)
         self.btn_edit = ttk.Button(toolbar, text="Modifier", command=self._edit)
         self.btn_edit.pack(side=tk.LEFT, padx=6)
+        self.btn_delete = ttk.Button(toolbar, text="supprimer", command=self._delete)
+        self.btn_delete.pack (side=tk.LEFT)
+       
         
         
         ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, padx=10, fill='y')
+
+        # 2. Ajout du Filtre par Statut
+        ttk.Label(toolbar, text="Statut:").pack(side=tk.LEFT, padx=(5, 0))
+    
+        statut_values = ["Actif", "Vendu", "Abattu", "Tous"]
+        self.cb_statut_filter = ttk.Combobox(
+            toolbar, 
+            textvariable=self.var_statut_filter, 
+            values=statut_values, 
+            state="readonly", 
+            width=10
+        )
+        self.cb_statut_filter.pack(side=tk.LEFT, padx=5)
+    
+        # Lie un événement pour rafraîchir la liste dès que la sélection change
+        self.cb_statut_filter.bind('<<ComboboxSelected>>', lambda e: self._refresh())
+
+        #Ajout du Champ de Recherche
+    
+        ttk.Label(toolbar, text="Rechercher:").pack(side=tk.LEFT, padx=(5, 0))
+    
+        self.entry_search = ttk.Entry(toolbar, textvariable=self.var_search, width=25)
+        self.entry_search.pack(side=tk.LEFT, padx=5)
+    
+        # Lier la touche Entrée (Return) au rafraîchissement
+        self.entry_search.bind('<Return>', lambda e: self._refresh())
+    
+        self.btn_search = ttk.Button(toolbar, text="🔎 Filtrer", command=self._refresh)
+        self.btn_search.pack(side=tk.LEFT)
 
         self.btn_mort = ttk.Button(toolbar, text="❌ Mortalité", command=self._mortality)
         self.btn_mort.pack(side=tk.LEFT)
         self.btn_sale = ttk.Button(toolbar, text="💰 Vente partielle", command=self._sale)
         self.btn_sale.pack(side=tk.LEFT, padx=6)
+        self.btn_slaughter = ttk.Button(toolbar, text="🔪 Abattage", command=self._slaughter) # <-- AJOUTÉ
+        self.btn_slaughter.pack(side=tk.LEFT)
         
         ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, padx=10, fill='y')
         
@@ -269,12 +310,19 @@ class LotsFrame(ttk.Frame):
 
     def _refresh(self):
         """Charge et affiche la liste des lots depuis la base de données."""
+        
+        #Récupère le terme de recherche
+        search_term = self.var_search.get() if hasattr(self, 'var_search') else None
+        
+        # Récupère le statut sélectionné. Si 'Tous' est sélectionné, on passe None
+        statut_filter = self.var_statut_filter.get() if hasattr(self, 'var_statut_filter') and self.var_statut_filter.get() != "Tous" else None
+
         # Efface les lignes existantes
         for i in self.tree.get_children():
             self.tree.delete(i)
         
         # Charge les lots (avec les compteurs calculés dans la DAO)
-        for row in list_lots():
+        for row in list_lots(search=search_term, statut=statut_filter):
             poids_moyen = f"{row['poids_moyen']:.2f} kg" if row.get("poids_moyen") else "-"
             
             self.tree.insert("", tk.END, values=(
@@ -312,6 +360,67 @@ class LotsFrame(ttk.Frame):
             messagebox.showinfo("Info", "Sélectionnez un lot à modifier.")
             return
         LotForm(self.master, id_, self._refresh)
+    
+    def _delete(self):
+        """Gère la suppression définitive d'un lot."""
+        id_ = self._selected_id()
+        if not id_:
+            messagebox.showinfo("Info", "Sélectionnez un lot à supprimer.")
+            return
+            
+        lot = get_lot(id_)
+        
+        if lot and (lot.get("morts", 0) > 0 or lot.get("vendus", 0) > 0):
+            # Vérification si le lot a déjà un historique
+            if not messagebox.askyesno("⚠️ Attention - Suppression", 
+                                    f"Lot #{id_} a déjà des événements enregistrés. Êtes-vous SÛR de vouloir SUPPRIMER DÉFINITIVEMENT ce lot et tout son historique associé ?"):
+                return
+        else:
+            # Simple suppression si le lot est "neuf" ou non utilisé
+            if not messagebox.askyesno("Confirmation de Suppression", f"Voulez-vous supprimer définitivement Lot #{id_} ?"):
+                return
+                
+        try:
+            delete_lot(id_) # Appel à la fonction DAO
+            messagebox.showinfo("Succès", f"Lot #{id_} a été supprimé.")
+            self._refresh()
+        except Exception as e:
+            messagebox.showerror("Erreur de Suppression", f"Impossible de supprimer le lot. Assurez-vous que la fonction DAO 'delete_lot' est implémentée: {e}")
+
+    def _slaughter(self):
+        """Prépare l'ouverture du dialogue d'abattage partiel pour le lot sélectionné."""
+        id_ = self._selected_id()
+        if not id_:
+            messagebox.showinfo("Info", "Sélectionnez un lot.")
+            return
+        lot = get_lot(id_)
+        if lot["statut"] != "Actif":
+            messagebox.showwarning("Action impossible", f"Le lot #{id_} n'est pas actif.")
+            return
+        
+        counters = get_lot_counters(id_)
+        restants = counters.get("restants", 0)
+        
+        if restants <= 0:
+            messagebox.showwarning("Abattage", f"Lot #{id_}: Zéro animal restant à abattre.")
+            return
+            
+        if not messagebox.askyesno("Confirmation d'Abattage", 
+                                    f"Lot #{id_}: Il reste {restants} animaux. "
+                                    "Voulez-vous enregistrer l'abattage de ces {restants} animaux et CLÔTURER le lot en 'Abattu' ?"):
+            return
+            
+        try:
+            # 1. Enregistre l'événement d'abattage (retire du stock via lot_events DAO)
+            record_slaughter(id_, date.today().strftime("%Y-%m-%d"), restants) 
+            
+            # 2. Change le statut du lot dans la table `lots`
+            close_lot(id_, "Abattu") 
+            
+            messagebox.showinfo("Succès", f"{restants} animaux du Lot #{id_} ont été marqués comme abattus et le lot est clôturé.")
+            self._refresh()
+        except Exception as e:
+            messagebox.showerror("Erreur d'Abattage", f"Impossible d'enregistrer l'abattage: {e}")
 
     def _close(self):
         """Clôture le lot sélectionné et le marque comme 'Vendu'."""
@@ -522,3 +631,77 @@ class LotsFrame(ttk.Frame):
             self._refresh()
             
         ttk.Button(frm, text="Enregistrer la vente", command=save).grid(row=row, column=0, columnspan=2, pady=12, sticky="ew")
+    
+    
+
+    def _open_slaughter_dialog(self, lot_id: int):
+        """Dialogue pour enregistrer un abattage partiel (avec validation)."""
+        dlg = tk.Toplevel(self.master)
+        dlg.title(f"Abattage Partiel - Lot #{lot_id}")
+        dlg.transient(self.master)
+        dlg.grab_set()
+        dlg.resizable(False, False)
+        frm = ttk.Frame(dlg, padding=12)
+        frm.grid()
+    
+        lot = get_lot(lot_id)
+        if not lot:
+            messagebox.showerror("Erreur", "Lot introuvable")
+            return
+        date_arrivee = lot["date_arrivee"]
+
+        # Variables du dialogue
+        v_date = tk.StringVar(value=date.today().strftime("%Y-%m-%d"))
+        v_q = tk.IntVar(value=0)
+        v_poids_unitaire = tk.StringVar()
+    
+        # Construction des champs
+        row = 0
+        ttk.Label(frm, text="Date (YYYY-MM-DD)").grid(row=row, column=0, sticky="w", padx=5, pady=4)
+        ttk.Entry(frm, textvariable=v_date, width=18).grid(row=row, column=1, pady=4, padx=5)
+        row += 1
+        ttk.Label(frm, text="Quantité abattue").grid(row=row, column=0, sticky="w", padx=5, pady=4)
+        ttk.Entry(frm, textvariable=v_q, width=18).grid(row=row, column=1, pady=4, padx=5)
+        row += 1
+        ttk.Label(frm, text="Poids unitaire (kg)").grid(row=row, column=0, sticky="w", padx=5, pady=4)
+        ttk.Entry(frm, textvariable=v_poids_unitaire, width=18).grid(row=row, column=1, pady=4, padx=5)
+        row += 1
+    
+        def save():
+            """Logique d'enregistrement et de validation de l'abattage."""
+            try:
+                poids_unitaire = float(v_poids_unitaire.get()) if v_poids_unitaire.get().strip() else None
+            except ValueError:
+                messagebox.showwarning("Validation", "Poids unitaire invalide. Entrez un nombre.")
+                return
+            
+            if v_q.get() <= 0 or not v_date.get():
+                messagebox.showwarning("Validation", "Date et quantité abattue requises et positives.")
+                return
+            
+            if not is_valid_date(v_date.get()):
+                messagebox.showwarning("Validation", "Format de date invalide (YYYY-MM-DD).")
+                return
+
+            # VÉRIFICATION DE LA COHÉRENCE TEMPORELLE
+            if v_date.get() < str(date_arrivee):
+                messagebox.showwarning("Validation", 
+                                   f"La date d'abattage ({v_date.get()}) ne peut être antérieure à la date d'arrivée du lot ({date_arrivee}).")
+                return
+
+            counters = get_lot_counters(lot_id)
+            if v_q.get() > counters["restants"]:
+                messagebox.showwarning("Validation", f"Quantité ({v_q.get()}) supérieure aux restants ({counters['restants']}).")
+                return
+            
+            # Appel à la DAO pour enregistrer l'événement
+            # La fonction record_slaughter doit être dans app/dao/lot_events.py
+            try:
+                record_slaughter(lot_id, v_date.get(), int(v_q.get()), poids_unitaire)
+                messagebox.showinfo("Succès", f"{v_q.get()} animaux abattus enregistrés pour le Lot #{lot_id}.")
+                dlg.destroy()
+                self._refresh()
+            except Exception as e:
+                messagebox.showerror("Erreur DAO", f"Échec de l'enregistrement de l'abattage : {e}")
+            
+        ttk.Button(frm, text="Enregistrer l'Abattage", command=save).grid(row=row, column=0, columnspan=2, pady=12, sticky="ew")

@@ -75,7 +75,7 @@ class LotForm(tk.Toplevel):
         ttk.Entry(container, textvariable=self.var_poids).grid(row=row, column=1, pady=4, padx=5, sticky="ew")
         row += 1
         # Champ Source
-        ttk.Label(container, text="Source").grid(row=row, column=0, sticky="w", padx=5, pady=4)
+        ttk.Label(container, text="Fournisseur").grid(row=row, column=0, sticky="w", padx=5, pady=4)
         ttk.Entry(container, textvariable=self.var_source).grid(row=row, column=1, pady=4, padx=5, sticky="ew")
         row += 1
         
@@ -215,7 +215,7 @@ class LotsFrame(ttk.Frame):
         toolbar.grid(row=1, column=0, sticky="ew", pady=(0, 5)) 
         
         # Boutons de la barre d'outils
-        self.btn_new = ttk.Button(toolbar, text="Nouveau lot (Fermier)", command=self._new)
+        self.btn_new = ttk.Button(toolbar, text="Nouveau lot", command=self._new)
         self.btn_new.pack(side=tk.LEFT)
         self.btn_edit = ttk.Button(toolbar, text="Modifier", command=self._edit)
         self.btn_edit.pack(side=tk.LEFT, padx=6)
@@ -297,7 +297,7 @@ class LotsFrame(ttk.Frame):
         self.tree.heading("abattus", text="Abattus")
         self.tree.heading("restants", text="Restants")
         self.tree.heading("poids", text="Poids moy. (kg)")
-        self.tree.heading("source", text="Source")
+        self.tree.heading("source", text="Fournisseur")
         self.tree.heading("statut", text="Statut")
         self.tree.heading("remarque", text="Remarque")
 

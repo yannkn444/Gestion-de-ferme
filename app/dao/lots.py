@@ -11,7 +11,7 @@ def list_lots(search: Optional[str] = None, statut: Optional[str] = None) -> Lis
                 SELECT l.id, l.type_animal, l.date_arrivee, l.nombre_initial, l.poids_moyen, l.source, l.statut, l.remarque,
                 COALESCE(m.q,0) AS morts,
                 COALESCE(v.q,0) AS vendus,
-                COALESCE(a.q,0) AS abattus, -- AJOUTÉ
+                COALESCE(a.q,0) AS abattus, 
                 (l.nombre_initial - COALESCE(m.q,0) - COALESCE(v.q,0) - COALESCE(a.q,0)) AS restants -- MODIFIÉ
                 FROM lots l
                 LEFT JOIN (
@@ -162,6 +162,60 @@ def delete_lot(lot_id: int):
         if conn:
             conn.rollback()
         raise # Rélève l'exception pour que l'interface utilisateur puisse l'afficher
+    finally:
+        if conn:
+            conn.close()
+
+def check_and_close_lot(lot_id: int):
+    """
+    Vérifie si un lot n'a plus d'animaux restants et
+    met à jour son statut si la quantité restante est 0.
+    Retourne True si le statut a été mis à jour, False sinon.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor(dictionary=True) as cur:
+            # 1. Calculer le nombre d'animaux restants
+            cur.execute(
+                """
+                SELECT 
+                    (l.nombre_initial - COALESCE(m.q, 0) - COALESCE(v.q, 0) - COALESCE(a.q, 0)) AS restants,
+                    l.statut
+                FROM lots l
+                LEFT JOIN (SELECT lot_id, SUM(quantite) AS q FROM mortalites GROUP BY lot_id) m ON m.lot_id = l.id
+                LEFT JOIN (SELECT lot_id, SUM(quantite) AS q FROM ventes_animaux GROUP BY lot_id) v ON v.lot_id = l.id
+                LEFT JOIN (SELECT lot_id, SUM(quantite) AS q FROM abattages GROUP BY lot_id) a ON a.lot_id = l.id
+                WHERE l.id = %s
+                """,
+                (lot_id,)
+            )
+            result = cur.fetchone()
+            
+            if not result:
+                return False # Lot introuvable
+
+            restants = result['restants']
+            current_statut = result['statut']
+
+            # 2. Vérification de la condition et mise à jour
+            if restants <= 0 and current_statut == 'Actif':
+                new_statut = 'Terminé'
+                
+                cur.execute(
+                    "UPDATE lots SET statut = %s WHERE id = %s",
+                    (new_statut, lot_id)
+                )
+                conn.commit()
+                return True
+                
+            return False
+            
+    except Exception as e:
+        print(f"Erreur lors de la vérification du statut du lot {lot_id}: {e}")
+        # En cas d'erreur, assurez-vous de rollback si nécessaire
+        if conn:
+            conn.rollback()
+        return False
     finally:
         if conn:
             conn.close()

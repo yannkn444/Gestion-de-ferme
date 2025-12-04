@@ -17,8 +17,7 @@ def fetch_kpis() -> dict:
             lots_actifs = int(cur.fetchone()["n"])
             
             # 2. Stocks sous le seuil d'alerte
-            # La colonne 'seuil' est maintenant garantie par l'exécution de la migration
-            cur.execute("SELECT COUNT(*) AS n FROM stocks WHERE seuil IS NOT NULL AND seuil>0 AND quantite <= seuil")
+            cur.execute("SELECT COUNT(*) AS n FROM stocks WHERE seuil_alerte IS NOT NULL AND seuil_alerte>0 AND quantite <= seuil_alerte")
             stocks_low = int(cur.fetchone()["n"])
             
             # 3. Calculs financiers du mois courant

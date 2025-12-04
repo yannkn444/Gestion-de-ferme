@@ -8,7 +8,7 @@ def list_stocks() -> List[Dict]:
 	try:
 		with conn.cursor(dictionary=True) as cur:
 			cur.execute(
-				"SELECT id, nom_produit, type_produit, quantite, unite, COALESCE(seuil, 0) AS seuil, date_ajout FROM stocks ORDER BY nom_produit ASC"
+				"SELECT id, nom_produit, type_produit, quantite, unite, COALESCE(seuil_alerte, 0) AS seuil_alerte, date_ajout FROM stocks ORDER BY nom_produit ASC"
 			)
 			return cur.fetchall()
 	finally:

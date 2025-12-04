@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from datetime import date
+from pathlib import Path
 
 from app.reports import kpis_by_lot, monthly_summary, lots_overview
 from app.dao.lots import list_active_lots

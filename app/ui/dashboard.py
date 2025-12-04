@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-# Importation du DAO (l'endroit où la logique SQL réside maintenant)
+
 from app.dao.kpis import fetch_kpis
 
 

@@ -107,5 +107,3 @@ def list_ventes(lot_id: int) -> List[Dict]:
 			return cur.fetchall()
 	finally:
 		conn.close()
-
-

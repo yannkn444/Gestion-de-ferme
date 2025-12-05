@@ -1,18 +1,22 @@
 from typing import List, Dict, Optional, Tuple
-from ..db import get_connection
+from ..db import get_connection 
 
 
-def list_lots(search: Optional[str] = None, statut: Optional[str] = None) -> List[Dict]: # <-- Ajout du paramètre statut
+def list_lots(search: Optional[str] = None, statut: Optional[str] = None) -> List[Dict]:
+    """
+    Récupère la liste des lots avec les compteurs calculés (morts, vendus, abattus, restants),
+    en appliquant des filtres optionnels par statut et recherche textuelle.
+    """
     conn = get_connection()
     try:
         with conn.cursor(dictionary=True) as cur:
             base_select = (
                 """
-                SELECT l.id, l.type_animal, l.date_arrivee, l.nombre_initial, l.poids_moyen, l.source, l.statut, l.remarque,
+                SELECT l.id, l.type_animal, l.date_arrivee, l.nombre_initial, l.poids_moyen, l.source, l.statut, l.remarque, l.cout_initial, -- AJOUT de cout_initial
                 COALESCE(m.q,0) AS morts,
                 COALESCE(v.q,0) AS vendus,
                 COALESCE(a.q,0) AS abattus, 
-                (l.nombre_initial - COALESCE(m.q,0) - COALESCE(v.q,0) - COALESCE(a.q,0)) AS restants -- MODIFIÉ
+                (l.nombre_initial - COALESCE(m.q,0) - COALESCE(v.q,0) - COALESCE(a.q,0)) AS restants
                 FROM lots l
                 LEFT JOIN (
                     SELECT lot_id, SUM(quantite) AS q FROM mortalites GROUP BY lot_id
@@ -36,11 +40,11 @@ def list_lots(search: Optional[str] = None, statut: Optional[str] = None) -> Lis
                 params.append(statut)
                 
             # 2. Filtre par Recherche textuelle (si spécifié)
-            if search:
+            if search: # Si 'search' contient une espèce ou un autre terme
                 like = f"%{search}%"
-                # Regroupe les conditions textuelles dans une clause OR
+                # Regroupe les conditions textuelles dans une clause OR pour la recherche générale
                 conditions.append("(l.type_animal LIKE %s OR l.source LIKE %s OR l.statut LIKE %s)")
-                params.extend([like, like, like]) # Ajoute les trois paramètres
+                params.extend([like, like, like])
             
             # 3. Construction de la requête finale
             full_query = base_select
@@ -49,7 +53,7 @@ def list_lots(search: Optional[str] = None, statut: Optional[str] = None) -> Lis
             
             full_query += " ORDER BY l.id DESC"
             
-            cur.execute(full_query, tuple(params)) # Exécute avec tous les paramètres collectés
+            cur.execute(full_query, tuple(params))
             
             return cur.fetchall()
     finally:
@@ -66,14 +70,18 @@ def create_lot(
     remarque: Optional[str],
     cout_initial: Optional[float], 
 ) -> int:
+    """
+    Crée un nouveau lot.
+    
+    ✅ STATUT : CORRIGÉ. Ajout de 'statut' et 'cout_initial' dans la requête SQL et les paramètres.
+    """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                -- AJOUTÉ: statut dans la liste des colonnes
                 INSERT INTO lots(type_animal, date_arrivee, nombre_initial, poids_moyen, source, statut, remarque, cout_initial)
-                VALUES(%s,%s,%s,%s,%s,%s,%s,%s)  -- Maintenant 8 placeholders
+                VALUES(%s,%s,%s,%s,%s,%s,%s,%s)
                 """,
                 (type_animal, date_arrivee, nombre_initial, poids_moyen, source, statut, remarque, cout_initial),
             )
@@ -93,6 +101,11 @@ def update_lot(
     statut: str,
     remarque: Optional[str],
 ) -> None:
+    """
+    Met à jour les informations de base d'un lot existant, y compris son statut.
+    
+    ✅ STATUT : CORRIGÉ. La mise à jour du statut est correctement incluse.
+    """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -110,11 +123,16 @@ def update_lot(
 
 
 def get_lot(id_: int) -> Optional[Dict]:
+    """
+    Récupère un lot par son ID.
+    
+    ⚠️ MICRO-CORRECTION : Ajout de 'cout_initial' pour un chargement complet dans l'UI si nécessaire.
+    """
     conn = get_connection()
     try:
         with conn.cursor(dictionary=True) as cur:
             cur.execute(
-                "SELECT id, type_animal, date_arrivee, nombre_initial, poids_moyen, source, statut, remarque FROM lots WHERE id=%s",
+                "SELECT id, type_animal, date_arrivee, nombre_initial, poids_moyen, source, statut, remarque, cout_initial FROM lots WHERE id=%s",
                 (id_,),
             )
             return cur.fetchone()
@@ -123,6 +141,11 @@ def get_lot(id_: int) -> Optional[Dict]:
 
 
 def close_lot(id_: int, statut: str = "Vendu") -> None:
+    """
+    Met à jour le statut d'un lot, généralement pour le marquer comme 'Vendu' ou 'Abattu' (si tout est parti).
+    
+    ✅ STATUT : Correct.
+    """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -133,6 +156,11 @@ def close_lot(id_: int, statut: str = "Vendu") -> None:
 
 
 def list_active_lots() -> List[Dict]:
+    """
+    Récupère une liste simplifiée des lots actifs pour les menus déroulants d'événements.
+    
+    ✅ STATUT : Correct.
+    """
     conn = get_connection()
     try:
         with conn.cursor(dictionary=True) as cur:
@@ -145,7 +173,15 @@ def list_active_lots() -> List[Dict]:
 
 def delete_lot(lot_id: int):
     """
-    Supprime un lot et tous les événements associés (ventes, mortalités, abattages).
+    Supprime un lot. Si les contraintes de clé étrangère (CASCADE ON DELETE)
+    sont configurées sur vos tables 'mortalites', 'ventes_animaux', 'abattages',
+    la suppression de ces événements sera automatique. Sinon, ces suppressions
+    doivent être ajoutées manuellement ici.
+    
+    ⚠️ NOTE : La suppression est correcte si les contraintes CASCADE sont en place. 
+    Si ce n'est pas le cas, vous devriez ajouter des requêtes DELETE explicites 
+    pour les tables d'événements (mortalites, ventes_animaux, abattages) AVANT de 
+    supprimer le lot.
     """
     conn = None
     try:
@@ -161,16 +197,17 @@ def delete_lot(lot_id: int):
         print(f"Erreur lors de la suppression du lot {lot_id} : {e}")
         if conn:
             conn.rollback()
-        raise # Rélève l'exception pour que l'interface utilisateur puisse l'afficher
+        raise
     finally:
         if conn:
             conn.close()
 
 def check_and_close_lot(lot_id: int):
     """
-    Vérifie si un lot n'a plus d'animaux restants et
-    met à jour son statut si la quantité restante est 0.
-    Retourne True si le statut a été mis à jour, False sinon.
+    Vérifie si un lot n'a plus d'animaux restants et met à jour son statut
+    à 'Terminé' si la quantité restante est <= 0 et que le statut actuel est 'Actif'.
+    
+    ✅ STATUT : Correct. Le calcul des restants est réutilisé et la mise à jour est conditionnelle.
     """
     conn = get_connection()
     try:
@@ -192,7 +229,7 @@ def check_and_close_lot(lot_id: int):
             result = cur.fetchone()
             
             if not result:
-                return False # Lot introuvable
+                return False
 
             restants = result['restants']
             current_statut = result['statut']
@@ -212,7 +249,6 @@ def check_and_close_lot(lot_id: int):
             
     except Exception as e:
         print(f"Erreur lors de la vérification du statut du lot {lot_id}: {e}")
-        # En cas d'erreur, assurez-vous de rollback si nécessaire
         if conn:
             conn.rollback()
         return False

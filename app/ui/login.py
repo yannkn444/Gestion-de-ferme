@@ -16,8 +16,6 @@ class LoginFrame(ttk.Frame):
 
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
-
-        # === Thème clair et moderne ===
         style = ttk.Style(master)
         
         # 1. Carte principale 

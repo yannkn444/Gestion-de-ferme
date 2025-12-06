@@ -167,5 +167,3 @@ class SoinsFrame(ttk.Frame):
 		if messagebox.askyesno("Confirmation", "Supprimer ce soin ?"):
 			delete_soin(id_)
 			self._refresh()
-
-

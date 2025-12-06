@@ -73,5 +73,3 @@ def delete_soin(id_: int) -> None:
 			conn.commit()
 	finally:
 		conn.close()
-
-

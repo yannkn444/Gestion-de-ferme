@@ -103,9 +103,9 @@ def get_lot_counters(lot_id: int) -> Dict[str, int]:
             
             return {
                 "initial": base["nombre_initial"], 
-                "mortalites": morts, 
+                "morts": morts, 
                 "vendus": vendus, 
-                "abattus": abattus, # Ajout de la clé 'abattus'
+                "abattus": abattus,
                 "restants": restants
             }
     finally:

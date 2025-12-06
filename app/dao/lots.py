@@ -40,16 +40,15 @@ def list_lots(search: Optional[str] = None, statut: Optional[str] = None) -> Lis
                 params.append(statut)
                 
             # 2. Filtre par Recherche textuelle (si spécifié)
-            if search: # Si 'search' contient une espèce ou un autre terme
+            if search:
                 like = f"%{search}%"
-                # Regroupe les conditions textuelles dans une clause OR pour la recherche générale
                 conditions.append("(l.type_animal LIKE %s OR l.source LIKE %s OR l.statut LIKE %s)")
                 params.extend([like, like, like])
             
             # 3. Construction de la requête finale
             full_query = base_select
             if conditions:
-                full_query += " WHERE " + " AND ".join(conditions) # Joindre toutes les conditions avec AND
+                full_query += " WHERE " + " AND ".join(conditions) 
             
             full_query += " ORDER BY l.id DESC"
             
@@ -73,7 +72,6 @@ def create_lot(
     """
     Crée un nouveau lot.
     
-    ✅ STATUT : CORRIGÉ. Ajout de 'statut' et 'cout_initial' dans la requête SQL et les paramètres.
     """
     conn = get_connection()
     try:
@@ -103,8 +101,7 @@ def update_lot(
 ) -> None:
     """
     Met à jour les informations de base d'un lot existant, y compris son statut.
-    
-    ✅ STATUT : CORRIGÉ. La mise à jour du statut est correctement incluse.
+
     """
     conn = get_connection()
     try:
@@ -126,7 +123,6 @@ def get_lot(id_: int) -> Optional[Dict]:
     """
     Récupère un lot par son ID.
     
-    ⚠️ MICRO-CORRECTION : Ajout de 'cout_initial' pour un chargement complet dans l'UI si nécessaire.
     """
     conn = get_connection()
     try:
@@ -143,8 +139,7 @@ def get_lot(id_: int) -> Optional[Dict]:
 def close_lot(id_: int, statut: str = "Vendu") -> None:
     """
     Met à jour le statut d'un lot, généralement pour le marquer comme 'Vendu' ou 'Abattu' (si tout est parti).
-    
-    ✅ STATUT : Correct.
+
     """
     conn = get_connection()
     try:
@@ -158,8 +153,6 @@ def close_lot(id_: int, statut: str = "Vendu") -> None:
 def list_active_lots() -> List[Dict]:
     """
     Récupère une liste simplifiée des lots actifs pour les menus déroulants d'événements.
-    
-    ✅ STATUT : Correct.
     """
     conn = get_connection()
     try:
@@ -172,17 +165,7 @@ def list_active_lots() -> List[Dict]:
         conn.close()
 
 def delete_lot(lot_id: int):
-    """
-    Supprime un lot. Si les contraintes de clé étrangère (CASCADE ON DELETE)
-    sont configurées sur vos tables 'mortalites', 'ventes_animaux', 'abattages',
-    la suppression de ces événements sera automatique. Sinon, ces suppressions
-    doivent être ajoutées manuellement ici.
-    
-    ⚠️ NOTE : La suppression est correcte si les contraintes CASCADE sont en place. 
-    Si ce n'est pas le cas, vous devriez ajouter des requêtes DELETE explicites 
-    pour les tables d'événements (mortalites, ventes_animaux, abattages) AVANT de 
-    supprimer le lot.
-    """
+   
     conn = None
     try:
         conn = get_connection()
@@ -206,8 +189,6 @@ def check_and_close_lot(lot_id: int):
     """
     Vérifie si un lot n'a plus d'animaux restants et met à jour son statut
     à 'Terminé' si la quantité restante est <= 0 et que le statut actuel est 'Actif'.
-    
-    ✅ STATUT : Correct. Le calcul des restants est réutilisé et la mise à jour est conditionnelle.
     """
     conn = get_connection()
     try:

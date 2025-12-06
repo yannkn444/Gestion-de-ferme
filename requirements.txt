@@ -9,5 +9,7 @@ openpyxl
 ttkbootstrap
 pyinstaller
 
-admin@example.com
-ChangeMe123!
+
+#venv\Scripts\activate
+#python main.py
+#python -m scripts.create_admin

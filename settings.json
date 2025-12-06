@@ -1,0 +1,15 @@
+{
+    // 1. Force VS Code à utiliser l'interpréteur Python de votre venv (Chemin Absolu)
+    "python.defaultInterpreterPath": "C:\\Users\\kono\\Desktop\\FarmManager\\FarmManager\\venv\\Scripts\\python.exe",
+    
+    // 2. Aide Pylance à trouver les imports locaux dans la structure du projet
+    "python.analysis.extraPaths": [
+        ".",
+        "./app",
+        "./app/ui",
+        "./app/utils"
+    ],
+    
+    // 3. S'assurer que Pylance est utilisé comme serveur de langage
+    "python.languageServer": "Pylance"
+}

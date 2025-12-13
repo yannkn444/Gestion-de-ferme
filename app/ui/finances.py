@@ -268,7 +268,7 @@ class FinancesFrame(ttk.Frame):
 			self.tree_rec.insert("", tk.END, values=(r["id"], r["type_recette"], r["montant"], str(r["date_recette"]), r.get("lot_id") or "", r.get("client") or ""))
 		# Résumé
 		sumry = summary(f.get("start"), f.get("end"), f.get("lot_id"))
-		self.summary_label.configure(text=f"Dépenses: {sumry['depenses']:.0f} XAF    Recettes: {sumry['recettes']:.0f} XAF    Solde: {sumry['solde']:.0f} XAF")
+		self.summary_label.configure(text=f"Dépenses: {sumry['depenses']:.0f} XAF    Recettes: {sumry['recettes']:.0f} XAF    Benefice: {sumry['solde']:.0f} XAF")
 
 	def _sel_dep_id(self) -> Optional[int]:
 		it = self.tree_dep.selection()

@@ -98,6 +98,7 @@ def update_lot(
     source: Optional[str],
     statut: str,
     remarque: Optional[str],
+    cout_initial: Optional[float],
 ) -> None:
     """
     Met à jour les informations de base d'un lot existant, y compris son statut.
@@ -109,10 +110,10 @@ def update_lot(
             cur.execute(
                 """
                 UPDATE lots
-                SET type_animal=%s, date_arrivee=%s, nombre_initial=%s, poids_moyen=%s, source=%s, statut=%s, remarque=%s
+                SET type_animal=%s, date_arrivee=%s, nombre_initial=%s, poids_moyen=%s, source=%s, statut=%s, remarque=%s, cout_initial=%s
                 WHERE id=%s
                 """,
-                (type_animal, date_arrivee, nombre_initial, poids_moyen, source, statut, remarque, id_),
+                (type_animal, date_arrivee, nombre_initial, poids_moyen, source, statut, remarque, cout_initial, id_),
             )
             conn.commit()
     finally:

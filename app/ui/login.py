@@ -111,9 +111,7 @@ class LoginFrame(ttk.Frame):
         # Initialiser le pool de connexion
         init_connection_pool()
 
-    # =========================================================
     #  Authentification
-    # =========================================================
     def _handle_login(self):
         self.login_btn.config(state=tk.DISABLED)
 

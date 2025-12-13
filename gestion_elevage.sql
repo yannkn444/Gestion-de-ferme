@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS ventes_animaux (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- =============================================
--- TABLE X : abattages 
+-- TABLE : abattages 
 -- =============================================
 CREATE TABLE IF NOT EXISTS abattages (
     id INT AUTO_INCREMENT PRIMARY KEY,

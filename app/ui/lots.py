@@ -190,7 +190,6 @@ class LotForm(tk.Toplevel):
         # Logique d'enregistrement
         try:
             if self._lot_id:
-                # Mode Édition
                 current_lot = get_lot(self._lot_id)
                 update_lot(
                     self._lot_id,
@@ -204,7 +203,6 @@ class LotForm(tk.Toplevel):
                     cout_initial,
                 )
             else:
-                # Mode Création
                 create_lot(
                     self.var_type.get(),
                     self.var_date.get(),
@@ -219,14 +217,10 @@ class LotForm(tk.Toplevel):
             messagebox.showerror("Erreur DAO", f"Échec de l'enregistrement du lot : {e}")
             return
             
-        # Finalisation
         self._on_saved()
         self.destroy()
 
-
-# ----------------------------------------------------------------------
-## Classe LotsFrame (Vue Principale)
-# ----------------------------------------------------------------------
+#Classe LotsFrame (Vue Principale)
 
 class LotsFrame(ttk.Frame):
     """
@@ -244,7 +238,6 @@ class LotsFrame(ttk.Frame):
     def _build(self):
         """Construit l'interface utilisateur du cadre des lots."""
         
-        # Titre (Ligne 0)
         ttk.Label(self, text="Gestion des Lots d'Animaux", 
                   font=("Segoe UI", 16, "bold"), foreground="#1C7D7D").grid(row=0, column=0, sticky="w", pady=(0, 10))
 
@@ -365,7 +358,6 @@ class LotsFrame(ttk.Frame):
                 row["type_animal"], 
                 str(row["date_arrivee"]), 
                 row["nombre_initial"], 
-                # ✅ Utilisation sécurisée de .get() pour éviter KeyError: 'morts', etc.
                 counters.get("morts", 0),      
                 counters.get("vendus", 0),     
                 counters.get("abattus", 0),    
@@ -684,7 +676,7 @@ class LotsFrame(ttk.Frame):
             
         ttk.Button(frm, text="Enregistrer la vente", command=save).grid(row=row, column=0, columnspan=2, pady=12, sticky="ew")
 
-        # ✅ NOUVEAU PLACEMENT DU CENTRAGE : Après le placement de TOUS les widgets
+        # PLACEMENT DU CENTRAGE
         dlg.update_idletasks() 
         _center_toplevel(dlg)
 
@@ -770,7 +762,7 @@ class LotsFrame(ttk.Frame):
                 
         ttk.Button(frm, text="Enregistrer l'Abattage", command=save).grid(row=row, column=0, columnspan=2, pady=12, sticky="ew")
 
-        # ✅ NOUVEAU PLACEMENT DU CENTRAGE : Après le placement de TOUS les widgets
+        # PLACEMENT DU CENTRAGE
         dlg.update_idletasks() 
         _center_toplevel(dlg)
 
